@@ -1,0 +1,13 @@
+version: "3.9"
+services:
+  rabbitmq:
+    # make sure you use "management" version to enable rabbitmq UI (port 15672)
+    image: rabbitmq:4.0-management
+    container_name: 'rabbitmq'
+    restart: unless-stopped
+    ports:
+      - 5672:5672
+      - 15672:15672
+    volumes:
+      - ~/docker_volumes/rabbitmq/data/:/var/lib/rabbitmq/
+      - ~/docker_volumes/rabbitmq/log/:/var/log/rabbitmq
