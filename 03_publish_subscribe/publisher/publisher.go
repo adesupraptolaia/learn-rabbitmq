@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
@@ -28,7 +29,7 @@ func main() {
 	}
 	defer ch.Close()
 
-	ch.ExchangeDeclare(
+	err = ch.ExchangeDeclare(
 		"broadcast",         // exchange name
 		amqp.ExchangeFanout, // exchange type
 		false,               // durable
@@ -37,26 +38,26 @@ func main() {
 		false,               // no-wait
 		nil,                 // arguments
 	)
+	if err != nil {
+		log.Panicf("Failed to declare an exchange, err: %s\n", err.Error())
+	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// send 10 messages
-	for i := 1; i <= 20; i++ {
-		body := fmt.Sprintf("Hello World %d", i)
+	body := "Message from publisher with excahange broadcast"
 
-		err = ch.PublishWithContext(ctx,
-			"broadcast", // exchange
-			"",          // routing key
-			false,       // mandatory
-			false,       // immediate
-			amqp.Publishing{
-				ContentType: "text/plain",
-				Body:        []byte(body),
-			})
-		if err != nil {
-			log.Panicf("\nFailed to publish a message i: %d, err: %s\n", i, err.Error())
-		}
-		log.Printf(" [x] Sent %s\n", body)
+	err = ch.PublishWithContext(ctx,
+		"broadcast", // exchange
+		"",          // routing key
+		false,       // mandatory
+		false,       // immediate
+		amqp.Publishing{
+			ContentType: "text/plain",
+			Body:        []byte(body),
+		})
+	if err != nil {
+		log.Panicf("\nFailed to publish a message, err: %s\n", err.Error())
 	}
+	log.Printf(" [x] Sent %s\n", body)
 }

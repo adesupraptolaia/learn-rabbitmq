@@ -11,16 +11,6 @@ import (
 )
 
 func main() {
-	workerName := "worker-X"
-	if len(os.Args) > 1 {
-		workerName = os.Args[1]
-	}
-
-	queueName := "consummer_queue_name"
-	if len(os.Args) > 2 {
-		queueName = os.Args[2]
-	}
-
 	var (
 		username = "guest"
 		password = "guest"
@@ -40,26 +30,47 @@ func main() {
 	}
 	defer ch.Close()
 
+	// make sure exchange "routing_key_exchange" exist
+	err = ch.ExchangeDeclare(
+		"routing_key_exchange", // exchange name
+		amqp.ExchangeDirect,    // exchange type
+		false,                  // durable
+		false,                  // auto-deleted
+		false,                  // internal
+		false,                  // no-wait
+		nil,                    // arguments
+	)
+	if err != nil {
+		log.Panicf("Failed to declare an exchange, err: %s\n", err.Error())
+	}
+
+	// create a queue
 	q, err := ch.QueueDeclare(
-		queueName, // name
-		false,     // durable
-		false,     // delete when unused
-		true,      // exclusive
-		false,     // no-wait
-		nil,       // arguments
+		"",    // name
+		false, // durable
+		false, // delete when unused
+		true,  // exclusive
+		false, // no-wait
+		nil,   // arguments
 	)
 	if err != nil {
 		log.Panicln("Failed to declare a queue, err: ", err.Error())
 	}
 
-	// bind the queue to exchange "broadcast"
-	ch.QueueBind(
-		q.Name,      // queue name
-		"",          // routing key
-		"broadcast", // exchange
-		false,       // no-wait
-		nil,         // arguments
-	)
+	// bind the queue to exchange "routing_key_exchange"
+	// multiple routing keys
+	for _, routingKey := range os.Args[1:] {
+		err = ch.QueueBind(
+			q.Name,                 // queue name
+			routingKey,             // routing key
+			"routing_key_exchange", // exchange
+			false,                  // no-wait
+			nil,                    // arguments
+		)
+		if err != nil {
+			log.Panicln("Failed to bind a queue, err: ", err.Error())
+		}
+	}
 
 	// create a consumer
 	msgs, err := ch.Consume(
@@ -85,7 +96,7 @@ func main() {
 			// false = only ack this message
 			// true = ack this message and all prior unacknowledged
 			msgBody := string(msg.Body)
-			fmt.Println("Received a message: ", msgBody, "from go routine", workerName)
+			fmt.Println("Received a message: ", msgBody)
 
 			msg.Ack(false)
 		}

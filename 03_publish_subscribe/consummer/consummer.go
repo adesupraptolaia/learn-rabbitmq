@@ -11,16 +11,6 @@ import (
 )
 
 func main() {
-	workerName := "worker-X"
-	if len(os.Args) > 1 {
-		workerName = os.Args[1]
-	}
-
-	queueName := "consummer_queue_name"
-	if len(os.Args) > 2 {
-		queueName = os.Args[2]
-	}
-
 	var (
 		username = "guest"
 		password = "guest"
@@ -40,13 +30,26 @@ func main() {
 	}
 	defer ch.Close()
 
+	err = ch.ExchangeDeclare(
+		"broadcast",         // exchange name
+		amqp.ExchangeFanout, // exchange type
+		false,               // durable
+		false,               // auto-deleted
+		false,               // internal
+		false,               // no-wait
+		nil,                 // arguments
+	)
+	if err != nil {
+		log.Panicf("Failed to declare an exchange, err: %s\n", err.Error())
+	}
+
 	q, err := ch.QueueDeclare(
-		queueName, // name
-		false,     // durable
-		false,     // delete when unused
-		true,      // exclusive
-		false,     // no-wait
-		nil,       // arguments
+		"",    // name
+		false, // durable
+		false, // delete when unused
+		true,  // exclusive
+		false, // no-wait
+		nil,   // arguments
 	)
 	if err != nil {
 		log.Panicln("Failed to declare a queue, err: ", err.Error())
@@ -75,8 +78,8 @@ func main() {
 		log.Panicln("Failed to register a consumer, err: ", err.Error())
 	}
 
+	// handle quit signals
 	var quit = make(chan os.Signal, 1)
-	// handle notify signals
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
 	// consume messages in other goroutines
@@ -85,7 +88,7 @@ func main() {
 			// false = only ack this message
 			// true = ack this message and all prior unacknowledged
 			msgBody := string(msg.Body)
-			fmt.Println("Received a message: ", msgBody, "from go routine", workerName)
+			fmt.Println("Received a message: ", msgBody)
 
 			msg.Ack(false)
 		}

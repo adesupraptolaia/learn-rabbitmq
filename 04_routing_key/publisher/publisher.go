@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
+	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
@@ -28,35 +30,41 @@ func main() {
 	}
 	defer ch.Close()
 
-	ch.ExchangeDeclare(
-		"broadcast",         // exchange name
-		amqp.ExchangeFanout, // exchange type
-		false,               // durable
-		false,               // auto-deleted
-		false,               // internal
-		false,               // no-wait
-		nil,                 // arguments
+	err = ch.ExchangeDeclare(
+		"routing_key_exchange", // exchange name
+		amqp.ExchangeDirect,    // exchange type
+		false,                  // durable
+		false,                  // auto-deleted
+		false,                  // internal
+		false,                  // no-wait
+		nil,                    // arguments
 	)
+	if err != nil {
+		log.Panicf("Failed to declare an exchange, err: %s\n", err.Error())
+	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// send 10 messages
-	for i := 1; i <= 20; i++ {
-		body := fmt.Sprintf("Hello World %d", i)
-
-		err = ch.PublishWithContext(ctx,
-			"broadcast", // exchange
-			"",          // routing key
-			false,       // mandatory
-			false,       // immediate
-			amqp.Publishing{
-				ContentType: "text/plain",
-				Body:        []byte(body),
-			})
-		if err != nil {
-			log.Panicf("\nFailed to publish a message i: %d, err: %s\n", i, err.Error())
-		}
-		log.Printf(" [x] Sent %s\n", body)
+	routingKey := "routing_key"
+	if len(os.Args) > 1 {
+		routingKey = os.Args[1]
 	}
+
+	body := fmt.Sprintf("Hello World: routing_key %s", routingKey)
+
+	err = ch.PublishWithContext(ctx,
+		"routing_key_exchange", // exchange
+		routingKey,             // routing key
+		false,                  // mandatory
+		false,                  // immediate
+		amqp.Publishing{
+			DeliveryMode: amqp.Persistent,
+			ContentType:  "text/plain",
+			Body:         []byte(body),
+		})
+	if err != nil {
+		log.Panicf("\nFailed to publish a message_body: %s err: %s\n", body, err.Error())
+	}
+	log.Printf(" [x] Sent %s\n", body)
 }

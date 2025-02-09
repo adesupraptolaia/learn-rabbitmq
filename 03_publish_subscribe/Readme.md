@@ -1,7 +1,12 @@
 ## What should you notice
 
+Publisher will send message to exchange "broadcast" and all consumers that binded (with exchange "broadcast") will get message from exchange "broadcast".
+
+<img src="highlevel.png">
+
 ### Create new Exchange with type fanout
-this type exchange will send message to all "consummer" worker
+set exchange type to "fanout".
+
 ```
 ch.ExchangeDeclare(
 		"broadcast",         // exchange name
@@ -15,8 +20,8 @@ ch.ExchangeDeclare(
 ```
 
 
-### Publish Message to Exchange, instead of Queue
-set exchange name to "broadcast"
+### Publish Message to Exchange
+publish message to exchange "broadcast"
 ```
 ch.Publish(
         "broadcast", // exchange name
@@ -54,3 +59,23 @@ ch.QueueDeclare(
 		nil,       // arguments
 	)
 ```
+
+## How to Run
+publisher
+```
+go run publisher/publisher.go
+```
+
+consumer 1
+```
+go run consummer/consumer.go
+```
+
+consumer 2
+```
+go run consummer/consumer.go
+```
+
+result
+
+<img src="result.png">
